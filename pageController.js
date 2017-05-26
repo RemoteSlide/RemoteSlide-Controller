@@ -203,7 +203,6 @@ socket.on("deviceOrientation", function (msg) {
 
     cx = screenWidth - cx;
 
-
     cy = screenHeight - cy;
 
 
