@@ -13,11 +13,6 @@ socket.on("init", function (data) {
         if (session.info.remotes <= 0) {
             overlayMessage.show("Waiting for a remote to connect....");
         }
-        try {
-            chrome.runtime.sendMessage({action: "session_initialized"}, function (response) {
-            });
-        } catch (ignored) {
-        }
     } else if (data.state == "not_found") {
         console.warn("Session not found");
         overlayMessage.show("Session not found");
