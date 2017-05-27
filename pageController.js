@@ -164,15 +164,6 @@ var overlayMessage = {
 };
 
 var laserPointer = {
-    setupVectorsRaw: [
-        [0, 0, 0],// top left
-        [0, 0, 0],// top right
-        [0, 0, 0],// bottom left
-        [0, 0, 0]// bottom right
-    ],
-    setupVectors: [],
-    currentVectorRaw: [],
-    currentVector: [],
     applyStyle: function () {
         var element = $("#rs-laser-dot");
         $.each(settings.laserStyle, function (key, value) {
@@ -183,7 +174,6 @@ var laserPointer = {
         yaw: 90,// default
         pitch: 90// default
     },
-    lastPoint: [],
     currentPoint: [],
     lastMessage: 0,
     visible: false,
@@ -191,7 +181,6 @@ var laserPointer = {
 };
 socket.on("deviceOrientation", function (msg) {
     laserPointer.lastMessage = new Date().valueOf();
-    laserPointer.currentVectorRaw = msg.v;
 
     var screenWidth = $(window).width() - 10;
     var screenHeight = $(window).height() - 10;
