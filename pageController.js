@@ -170,10 +170,6 @@ var laserPointer = {
             element.css(key, value);
         })
     },
-    range: {
-        yaw: 90,// default
-        pitch: 90// default
-    },
     currentPoint: [],
     lastMessage: 0,
     visible: false,
@@ -236,11 +232,6 @@ socket.on("calibrationDot", function (msg) {
     } else if (action == 'hide') {
         $element.fadeOut();
     }
-})
-socket.on("orientationRange", function (msg) {
-    console.info("Orientation Range")
-    console.info(msg)
-    laserPointer.range = msg;
 })
 
 socket.on("err", function (msg) {
