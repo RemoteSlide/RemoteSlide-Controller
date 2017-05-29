@@ -36,6 +36,7 @@ socket.on("info", function (data) {
         if (data.clientType == 'remote') {
             overlayMessage.hide();
 
+            //TODO: fix missing laser dot, when the remotes don't connect after the host
             $("#rs-laser-dots").append("<div class='rs-laser-dot' id='rs-laser-dot-" + data.who + "' style='display:none'><i class='fa fa-circle' aria-hidden='true'></i></div>")
         }
     }
