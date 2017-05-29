@@ -35,6 +35,8 @@ socket.on("info", function (data) {
         session.info = data.info;
         if (data.clientType == 'remote') {
             overlayMessage.hide();
+
+            $("#rs-laser-dots").append("<div class='rs-laser-dot' id='rs-laser-dot-" + data.who + "' style='display:none'><i class='fa fa-circle' aria-hidden='true'></i></div>")
         }
     }
     if (data.type == 'client_disconnected') {
@@ -80,28 +82,29 @@ var session = {
     }
 };
 
-var settings = {
-    navigationType: 'button',
-    vibration: true,
-    laserCalibration: {
-        center: {
-            yaw: 0,
-            pitch: 0
-        },
-        range: {
-            yaw: 90,
-            pitch: 90
-        }
-    },
-    laserStyle: {
-        color: "red",
-        'font-size': 15
-    }
-};
+// var settings = {
+//     navigationType: 'button',
+//     vibration: true,
+//     laserCalibration: {
+//         center: {
+//             yaw: 0,
+//             pitch: 0
+//         },
+//         range: {
+//             yaw: 90,
+//             pitch: 90
+//         }
+//     },
+//     laserStyle: {
+//         color: "red",
+//         'font-size': 15
+//     }
+// };
+var settings = {};
 socket.on("settings", function (msg) {
-    settings = msg.settings;
+    settings[msg.from] = msg.settings;
 
-    laserPointer.applyStyle();
+    laserPointer.applyStyle(msg.from,msg.settings.laserStyle);
 });
 window.__remoteSlideSettings = settings;
 
@@ -164,16 +167,16 @@ var overlayMessage = {
 };
 
 var laserPointer = {
-    applyStyle: function () {
-        var element = $("#rs-laser-dot");
-        $.each(settings.laserStyle, function (key, value) {
+    applyStyle: function (client,styles) {
+        var element = $("#rs-laser-dot-"+client);
+        $.each(styles, function (key, value) {
             element.css(key, value);
         })
     },
     currentPoint: [],
     lastMessage: 0,
-    visible: false,
-    hideTimer: undefined
+    visible: {},
+    hideTimers:{}
 };
 socket.on("deviceOrientation", function (msg) {
     laserPointer.lastMessage = new Date().valueOf();
@@ -183,15 +186,14 @@ socket.on("deviceOrientation", function (msg) {
 
     var vector = msg.v;
 
-    var cx = screenWidth * vector[0] / settings.laserCalibration.range.yaw;//90
-    var cy = screenHeight * vector[1] / settings.laserCalibration.range.pitch;//90
+    var cx = screenWidth * vector[0] / settings[msg.from].laserCalibration.range.yaw;//90
+    var cy = screenHeight * vector[1] / settings[msg.from].laserCalibration.range.pitch;//90
 
     cx = screenWidth - cx;
 
     cy = screenHeight - cy;
 
 
-    $(".laser-pos").text(cx + ", " + cy)
     cx = Math.min(screenWidth, cx);
     cy = Math.min(screenHeight, cy);
     cx = Math.max(0, cx);
@@ -199,27 +201,28 @@ socket.on("deviceOrientation", function (msg) {
 
     console.log("Screen: " + screenWidth + "," + screenHeight)
     console.info("Cursor Position: " + cx + "," + cy);
-    laserPointer.currentPoint = [cx, cy];
 
-    if (!laserPointer.visible) {
+    if (!laserPointer.visible[msg.from]) {
         console.log("fade in")
-        $("#rs-laser-dot").fadeIn(50);
-        laserPointer.visible = true;
+        $("#rs-laser-dot-" + msg.from).fadeIn(50);
+        laserPointer.visible[msg.from] = true;
+        laserPointer.applyStyle(msg.from,settings[msg.from].laserStyle);
 
-        laserPointer.hideTimer = setInterval(function () {
+        laserPointer.hideTimers[msg.from] = setInterval(function () {
             if (new Date().valueOf() - laserPointer.lastMessage > 200) {
-                if (laserPointer.visible) {
-                    laserPointer.visible = false;
-                    $("#rs-laser-dot").fadeOut("fast");
+                if (laserPointer.visible[msg.from]) {
+                    laserPointer.visible[msg.from] = false;
+                    $("#rs-laser-dot-" + msg.from).fadeOut("fast");
                     console.log("fade out")
 
-                    clearInterval(laserPointer.hideTimer);
+                    clearInterval(laserPointer.hideTimers[msg.from]);
+                    delete laserPointer.hideTimers[msg.from];
                 }
             }
         }, 200)
     }
 
-    $("#rs-laser-dot").css("left", cx).css("top", cy);
+    $("#rs-laser-dot-" + msg.from).css("left", cx).css("top", cy);
     console.log(laserPointer)
 })
 
