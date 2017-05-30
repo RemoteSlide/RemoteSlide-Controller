@@ -104,7 +104,7 @@ var settings = {};
 socket.on("settings", function (msg) {
     settings[msg.from] = msg.settings;
 
-    laserPointer.applyStyle(msg.from,msg.settings.laserStyle);
+    laserPointer.applyStyle(msg.from, msg.settings.laserStyle);
 });
 window.__remoteSlideSettings = settings;
 
@@ -167,16 +167,18 @@ var overlayMessage = {
 };
 
 var laserPointer = {
-    applyStyle: function (client,styles) {
-        var element = $("#rs-laser-dot-"+client);
+    applyStyle: function (client, styles) {
+        var element = $("#rs-laser-dot-" + client);
         $.each(styles, function (key, value) {
             element.css(key, value);
         })
+        var iconElement = element.children().first();
+        iconElement.removeClass().addClass("fa").addClass("fa-" + (styles._icon || "circle"));
     },
     currentPoint: [],
     lastMessage: 0,
     visible: {},
-    hideTimers:{}
+    hideTimers: {}
 };
 socket.on("deviceOrientation", function (msg) {
     laserPointer.lastMessage = new Date().valueOf();
@@ -204,12 +206,12 @@ socket.on("deviceOrientation", function (msg) {
 
     if (!laserPointer.visible[msg.from]) {
         console.log("fade in")
-        if(!$("#rs-laser-dot-" + msg.from).length) {
+        if (!$("#rs-laser-dot-" + msg.from).length) {
             $("#rs-laser-dots").append("<div class='rs-laser-dot' id='rs-laser-dot-" + msg.from + "' style='display:none'><i class='fa fa-circle' aria-hidden='true'></i></div>")
         }
         $("#rs-laser-dot-" + msg.from).fadeIn(50);
         laserPointer.visible[msg.from] = true;
-        laserPointer.applyStyle(msg.from,settings[msg.from].laserStyle);
+        laserPointer.applyStyle(msg.from, settings[msg.from].laserStyle);
 
         laserPointer.hideTimers[msg.from] = setInterval(function () {
             if (new Date().valueOf() - laserPointer.lastMessage > 200) {
