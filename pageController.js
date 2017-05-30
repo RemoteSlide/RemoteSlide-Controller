@@ -227,7 +227,7 @@ socket.on("deviceOrientation", function (msg) {
         }, 200)
     }
 
-    $("#rs-laser-dot-" + msg.from).css("left", cx).css("top", cy);
+    $("#rs-laser-dot-" + msg.from).css("left", cx).css("top", cy).css("transform","rotate("+vector[2]+"deg)");
     console.log(laserPointer)
 })
 
