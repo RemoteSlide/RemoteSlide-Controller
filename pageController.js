@@ -36,7 +36,6 @@ socket.on("info", function (data) {
         if (data.clientType == 'remote') {
             overlayMessage.hide();
 
-            //TODO: fix missing laser dot, when the remotes don't connect after the host
             $("#rs-laser-dots").append("<div class='rs-laser-dot' id='rs-laser-dot-" + data.who + "' style='display:none'><i class='fa fa-circle' aria-hidden='true'></i></div>")
         }
     }
@@ -205,6 +204,9 @@ socket.on("deviceOrientation", function (msg) {
 
     if (!laserPointer.visible[msg.from]) {
         console.log("fade in")
+        if(!$("#rs-laser-dot-" + msg.from).length) {
+            $("#rs-laser-dots").append("<div class='rs-laser-dot' id='rs-laser-dot-" + msg.from + "' style='display:none'><i class='fa fa-circle' aria-hidden='true'></i></div>")
+        }
         $("#rs-laser-dot-" + msg.from).fadeIn(50);
         laserPointer.visible[msg.from] = true;
         laserPointer.applyStyle(msg.from,settings[msg.from].laserStyle);
