@@ -10,7 +10,7 @@ socket.on("init", function (data) {
         console.info("Session initialized");
         status("green", "check", "", 5000);
         session.info = data.info;
-        if (session.info.remotes <= 0) {
+        if (session.info.remotes.length <= 0) {
             overlayMessage.show("Waiting for a remote to connect....");
         }
     } else if (data.state == "not_found") {
@@ -42,7 +42,7 @@ socket.on("info", function (data) {
     if (data.type == 'client_disconnected') {
         session.info = data.info;
         if (data.clientType == 'remote') {
-            if (session.info.remotes <= 0) {
+            if (session.info.remotes.length <= 0) {
                 overlayMessage.show("Waiting for a remote to connect....");
             }
         }
@@ -78,7 +78,7 @@ var session = {
     info: {
         observer: false,
         host: false,
-        remotes: 0
+        remotes: []
     }
 };
 
