@@ -10,6 +10,8 @@ socket.on("init", function (data) {
         console.info("Session initialized");
         status("green", "check", "", 5000);
         session.info = data.info;
+        session.type = data.youAre;
+        session.clientId = data.yourId;
         if (session.info.remotes.length <= 0) {
             overlayMessage.show("Waiting for a remote to connect....");
         }
@@ -227,7 +229,7 @@ socket.on("deviceOrientation", function (msg) {
         }, 200)
     }
 
-    $("#rs-laser-dot-" + msg.from).css("left", cx).css("top", cy).css("transform","rotate("+vector[2]+"deg)");
+    $("#rs-laser-dot-" + msg.from).css("left", cx).css("top", cy).css("transform", "rotate(" + vector[2] + "deg)");
     console.log(laserPointer)
 })
 
