@@ -56,6 +56,10 @@ socket.on("info", function (data) {
     } catch (ignored) {
     }
 });
+socket.on("connectionInfo",function (data) {
+    session.info=data.info;
+})
+
 try {
     chrome.extension.onMessage.addListener(function (msg, sender, sendResponse) {
         console.log(msg)
