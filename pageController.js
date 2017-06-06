@@ -88,6 +88,64 @@ var session = {
     }
 };
 
+var slideSites = {
+    googleSlides: {
+        name: "Google Slides",
+        urlPattern: /https:\/\/docs\.google\.com\/presentation\/.+/g,
+        getSlideSizeAndIndex: function () {
+            var element = $(".goog-flat-menu-button-caption,[role=option]");
+            var size = element.attr("aria-setsize");
+            var index = element.attr("aria-posinset");
+
+            return [index + 1, size];
+        }
+    },
+    slidesCom: {
+        name: "slides.com",
+        urlPattern: /https?:\/\/slides\.com\/.+/g,
+        getSlideSizeAndIndex: function () {
+            var slideElements = $(".section,[data-id]");
+            var size = slideElements.length;
+            var index = 0;
+            slideElements.each(function (i) {
+                if ($(this).hasClass("present"))
+                    index = i;
+            })
+
+            return [index + 1, size];
+        }
+    }
+};
+var detectedSlideSite = undefined;
+$.each(slideSites, function (i, site) {
+    if (site.urlPattern.test(window.location.href)) {
+        detectedSlideSite = site;
+    }
+});
+if (detectedSlideSite) {
+    console.info("[SlideDetector] Detected '" + detectedSlideSite.name + "'");
+} else {
+    console.log("[SlideDetector] No slide website detected for " + window.location.href);
+}
+var sendSlideInfo = function () {
+    var slideInfo = {
+        page: {
+            index: 0,
+            size: 0
+        },
+        site: undefined
+    };
+    if (detectedSlideSite) {
+        slideInfo.site = detectedSlideSite.name;
+        var indexAndSize = detectedSlideSite.getSlideSizeAndIndex();
+        slideInfo.page.index = indexAndSize[0];
+        slideInfo.page.size = indexAndSize[1];
+    }
+    socket.emit("_forward", {event: "slideInfo", data: {info: slideInfo}})
+};
+sendSlideInfo();
+
+
 // var settings = {
 //     navigationType: 'button',
 //     vibration: true,
@@ -125,14 +183,16 @@ socket.on("control", function (msg) {
     simulateKeyEvent(keyCode, ctrlKey, shiftKey, altKey);
 
     setTimeout(function () {
-        try {
-            chrome.runtime.sendMessage({action: "takeScreenshot"}, function (image) {
-                console.log(image)
-                socket.emit("_forward", {event: "screenshot", data: {image: image}});
-            });
-        } catch (ignored) {
-        }
-    }, 500);
+        // try {
+        //     chrome.runtime.sendMessage({action: "takeScreenshot"}, function (image) {
+        //         console.log(image)
+        //         socket.emit("_forward", {event: "screenshot", data: {image: image}});
+        //     });
+        // } catch (ignored) {
+        // }
+
+        sendSlideInfo();
+    }, 50);
 });
 //// http://stackoverflow.com/questions/26816306/is-there-a-way-to-simulate-pressing-multiple-keys-on-mouse-click-with-javascript
 function simulateKeyEvent(keyCode, ctrlKey, shiftKey, altKey) {
