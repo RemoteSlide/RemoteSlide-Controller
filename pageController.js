@@ -56,8 +56,8 @@ socket.on("info", function (data) {
     } catch (ignored) {
     }
 });
-socket.on("connectionInfo",function (data) {
-    session.info=data.info;
+socket.on("connectionInfo", function (data) {
+    session.info = data.info;
 })
 
 try {
@@ -123,6 +123,16 @@ socket.on("control", function (msg) {
     // alert("Control: " + keyCode);
     console.log("Remote Key Event: " + (ctrlKey ? "[ctrl] + " : shiftKey ? "[shift] + " : altKey ? "[alt] + " : "") + keyCode);
     simulateKeyEvent(keyCode, ctrlKey, shiftKey, altKey);
+
+    setTimeout(function () {
+        try {
+            chrome.runtime.sendMessage({action: "takeScreenshot"}, function (image) {
+                console.log(image)
+                socket.emit("_forward", {event: "screenshot", data: {image: image}});
+            });
+        } catch (ignored) {
+        }
+    }, 500);
 });
 //// http://stackoverflow.com/questions/26816306/is-there-a-way-to-simulate-pressing-multiple-keys-on-mouse-click-with-javascript
 function simulateKeyEvent(keyCode, ctrlKey, shiftKey, altKey) {
