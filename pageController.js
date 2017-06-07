@@ -97,7 +97,21 @@ var slideSites = {
             var size = element.attr("aria-setsize");
             var index = element.attr("aria-posinset");
 
-            return [index + 1, size];
+            if (!slideIndexListenerAdded) {
+                element.attrchange({
+                    trackValues: true,
+                    callback: function (event) {
+                        console.log(event.attributeName + ": " + event.oldValue + " -> " + event.newValue)
+                        if (event.attributeName == "aria-posinset") {
+                            sendSlideInfo();
+                            setTimeout(sendScreenshot, 1000);
+                        }
+                    }
+                })
+                slideIndexListenerAdded = true;
+            }
+
+            return [parseInt(index), parseInt(size)];
         }
     },
     slidesCom: {
@@ -112,10 +126,58 @@ var slideSites = {
                     index = i;
             })
 
-            return [index + 1, size];
+            if (!slideIndexListenerAdded) {
+                slideElements.each(function () {
+                    $(this).attrchange({
+                        trackValues: true,
+                        callback: function (event) {
+                            if (event.attributeName == "class") {
+                                if (event.newValue == "present") {
+                                    onlyRunOnce(function () {
+                                        console.log(event.attributeName + ": " + event.oldValue + " -> " + event.newValue)
+
+                                        sendSlideInfo();
+                                        setTimeout(sendScreenshot, 750);
+                                    })
+                                }
+                            }
+                        }
+                    })
+                })
+                slideIndexListenerAdded = true;
+            }
+
+            return [parseInt(index) + 1, parseInt(size)];
+        }
+    },
+    prezi:{//TODO: Prezi support
+        name:"Prezi",
+        urlPattern:/https?:\/\/prezi\.com\/p\/.+/g,
+        getSlideSizeAndIndex:function () {
+            var progressIndicator = $("#navigation-container > div > div > div.koi-navigation-focus-area.visible-focus-area > div.koi-progressbar-container.koi-progressbar-inactive > div.progress-indicator");
+            console.log(window.preziPlayerJS)
+            // var index=window.preziPlayerJS.playerUI.playback.getCurrentStepIndex();
+            // var size=window.preziPlayerJS.playerUI.playback.getStepCount();
+            // console.log(index+"/"+size)
+            //
+            // if (!slideIndexListenerAdded) {
+            //     progressIndicator.attrchange({
+            //         trackValues: true,
+            //         callback: function (event) {
+            //             console.log(event.attributeName + ": " + event.oldValue + " -> " + event.newValue)
+            //             sendSlideInfo();
+            //             setTimeout(sendScreenshot, 500);
+            //         }
+            //     })
+            //     slideIndexListenerAdded = true;
+            // }
+
+            // return [index+1,size]
+            return [0,0]
         }
     }
 };
+var slideIndexListenerAdded = false;
 var detectedSlideSite = undefined;
 $.each(slideSites, function (i, site) {
     if (site.urlPattern.test(window.location.href)) {
@@ -141,9 +203,21 @@ var sendSlideInfo = function () {
         slideInfo.page.index = indexAndSize[0];
         slideInfo.page.size = indexAndSize[1];
     }
-    socket.emit("_forward", {event: "slideInfo", data: {info: slideInfo}})
+    socket.emit("_forward", {event: "slideInfo", data: {info: slideInfo}});
 };
-sendSlideInfo();
+var sendScreenshot = function () {
+    try {
+        chrome.runtime.sendMessage({action: "takeScreenshot"}, function (image) {
+            console.log(image)
+            socket.emit("_forward", {event: "screenshot", data: {image: image.image}});
+        });
+    } catch (ignored) {
+    }
+}
+setTimeout(function () {
+    sendSlideInfo();
+    sendScreenshot();
+}, 1000);
 
 
 // var settings = {
@@ -183,16 +257,8 @@ socket.on("control", function (msg) {
     simulateKeyEvent(keyCode, ctrlKey, shiftKey, altKey);
 
     setTimeout(function () {
-        // try {
-        //     chrome.runtime.sendMessage({action: "takeScreenshot"}, function (image) {
-        //         console.log(image)
-        //         socket.emit("_forward", {event: "screenshot", data: {image: image}});
-        //     });
-        // } catch (ignored) {
-        // }
-
-        sendSlideInfo();
-    }, 50);
+        sendSlideInfo()
+    },500)
 });
 //// http://stackoverflow.com/questions/26816306/is-there-a-way-to-simulate-pressing-multiple-keys-on-mouse-click-with-javascript
 function simulateKeyEvent(keyCode, ctrlKey, shiftKey, altKey) {
@@ -343,4 +409,11 @@ function status(color, type, msg, timeout) {
     //         }, timeout)
     //     }
     // });
+}
+
+var runOnceTimer;
+function onlyRunOnce(f, t) {
+    if (!t)t = 100;
+    clearTimeout(runOnceTimer);
+    runOnceTimer = setTimeout(f, t);
 }
