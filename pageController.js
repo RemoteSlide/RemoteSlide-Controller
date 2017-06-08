@@ -27,7 +27,7 @@ socket.on("init", function (data) {
     try {
         chrome.runtime.sendMessage({action: "socketEvent", event: 'init', data: data});
         chrome.runtime.sendMessage({action: "sessionUpdate", session: session});
-        chrome.runtime.sendMessage({action: "controlUpdate", active: true});
+        chrome.runtime.sendMessage({action: "controlUpdate", active: true, site: (detectedSlideSite ? detectedSlideSite.name : undefined)});
     } catch (ignored) {
     }
 });
@@ -64,7 +64,7 @@ try {
     chrome.extension.onMessage.addListener(function (msg, sender, sendResponse) {
         console.log(msg)
         if (msg.action == 'stateRequest') {
-            chrome.runtime.sendMessage({action: "controlUpdate", active: true});
+            chrome.runtime.sendMessage({action: "controlUpdate", active: true, site: (detectedSlideSite ? detectedSlideSite.name : undefined)});
         }
     });
 } catch (ignored) {
@@ -150,10 +150,10 @@ var slideSites = {
             return [parseInt(index) + 1, parseInt(size)];
         }
     },
-    prezi:{//TODO: Prezi support
-        name:"Prezi",
-        urlPattern:/https?:\/\/prezi\.com\/p\/.+/g,
-        getSlideSizeAndIndex:function () {
+    prezi: {//TODO: Prezi support
+        name: "Prezi",
+        urlPattern: /https?:\/\/prezi\.com\/p\/.+/g,
+        getSlideSizeAndIndex: function () {
             var progressIndicator = $("#navigation-container > div > div > div.koi-navigation-focus-area.visible-focus-area > div.koi-progressbar-container.koi-progressbar-inactive > div.progress-indicator");
             console.log(window.preziPlayerJS)
             // var index=window.preziPlayerJS.playerUI.playback.getCurrentStepIndex();
@@ -173,7 +173,7 @@ var slideSites = {
             // }
 
             // return [index+1,size]
-            return [0,0]
+            return [0, 0]
         }
     }
 };
@@ -258,7 +258,7 @@ socket.on("control", function (msg) {
 
     setTimeout(function () {
         sendSlideInfo()
-    },500)
+    }, 500)
 });
 //// http://stackoverflow.com/questions/26816306/is-there-a-way-to-simulate-pressing-multiple-keys-on-mouse-click-with-javascript
 function simulateKeyEvent(keyCode, ctrlKey, shiftKey, altKey) {
