@@ -154,26 +154,23 @@ var slideSites = {
         name: "Prezi",
         urlPattern: /https?:\/\/prezi\.com\/p\/.+/g,
         getSlideSizeAndIndex: function () {
-            var progressIndicator = $("#navigation-container > div > div > div.koi-navigation-focus-area.visible-focus-area > div.koi-progressbar-container.koi-progressbar-inactive > div.progress-indicator");
-            console.log(window.preziPlayerJS)
-            // var index=window.preziPlayerJS.playerUI.playback.getCurrentStepIndex();
-            // var size=window.preziPlayerJS.playerUI.playback.getStepCount();
-            // console.log(index+"/"+size)
-            //
-            // if (!slideIndexListenerAdded) {
-            //     progressIndicator.attrchange({
-            //         trackValues: true,
-            //         callback: function (event) {
-            //             console.log(event.attributeName + ": " + event.oldValue + " -> " + event.newValue)
-            //             sendSlideInfo();
-            //             setTimeout(sendScreenshot, 500);
-            //         }
-            //     })
-            //     slideIndexListenerAdded = true;
-            // }
+            var varibleBridge = $("#rs-prezi-var-bridge");
+            console.log(varibleBridge);
+            var data = varibleBridge.text();
+            data = JSON.parse(data);
 
-            // return [index+1,size]
-            return [0, 0]
+            var size = data.size;
+            var index = data.index;
+
+            if (!slideIndexListenerAdded) {
+                varibleBridge.on("change", function () {
+                    sendSlideInfo();
+                    setTimeout(sendScreenshot, 1000);
+                });
+                slideIndexListenerAdded = true;
+            }
+
+            return [index + 1, size]
         }
     }
 };
