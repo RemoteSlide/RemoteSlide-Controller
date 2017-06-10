@@ -265,6 +265,8 @@ function simulateKeyEvent(keyCode, ctrlKey, shiftKey, altKey) {
         var element = document.body;
         var keyCode = ___keyCode;
 
+        console.log(element)
+
         function keyEvent(el, ev) {
             var eventObj = document.createEvent("Events");
             eventObj.initEvent(ev, true, true);
@@ -277,16 +279,25 @@ function simulateKeyEvent(keyCode, ctrlKey, shiftKey, altKey) {
             // eventObj.shiftKey = shiftKey;
             // eventObj.altKey = altKey;
 
-            el.dispatchEvent(eventObj);
+            var res = el.dispatchEvent(eventObj);
+            console.log("KeyResult (" + ev + "): " + res)
+            return res;
         }
 
         // Trigger all 3 just in case
-        keyEvent(element, "keydown");
-        keyEvent(element, "keypress");
-        keyEvent(element, "keyup");
+        var r = true;
+        r &= keyEvent(element, "keydown");
+        r &= keyEvent(element, "keypress");
+        r &= keyEvent(element, "keyup");
+        console.log("Complete KeyResult: " + r)
+        if (r == true) {
+            console.warn("Simulating Key Event failed (probably)")
+        }
     }
 
     // Inject the script
+    console.log(document.body)
+    console.log($("body"))
     var script = document.createElement('script');
     script.textContent = "(" + injected.toString().replace("___keyCode", keyCode) + ")();";
     // console.log(script.textContent)
