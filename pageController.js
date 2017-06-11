@@ -313,8 +313,24 @@ var overlayMessage = {
     hide: function () {
         $(".laser-calibration-backdrop").fadeOut();
         $(".overlay-message-content").empty()
+    },
+    remote: {
+        show: function (msg) {
+            socket.emit("_forward", {event: "overlayMessage", action: "show", msg: msg});
+        },
+        hide: function () {
+            socket.emit("_forward", {event: "overlayMessage", action: "hide"});
+        }
     }
 };
+window.rsOverlayMsg = overlayMessage;
+socket.on("overlayMessage", function (msg) {
+    if (msg.action == "show") {
+        overlayMessage.show(msg.msg);
+    } else if (msg.action == "hide") {
+        overlayMessage.hide();
+    }
+});
 
 var laserPointer = {
     applyStyle: function (client, styles) {
