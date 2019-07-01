@@ -152,7 +152,7 @@ var slideSites = {
     },
     prezi: {//TODO: Prezi support
         name: "Prezi",
-        urlPattern: /https?:\/\/prezi\.com\/p\/.+/g,
+        urlPattern: /https?:\/\/prezi\.com\/(p|view)\/.+/g,
         getSlideSizeAndIndex: function () {
             var varibleBridge = $("#rs-prezi-var-bridge");
             console.log(varibleBridge);
