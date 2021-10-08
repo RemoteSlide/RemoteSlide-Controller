@@ -1,4 +1,5 @@
-var socket = io("https://remote-sli.de");
+const remoteSlideIo = window.remoteslideio || window.io || io;
+const socket = remoteSlideIo("https://remote-sli.de");
 socket.on("init", function (data) {
     if (data.state == "start") {
         console.info("Initializing session #" + remote_slide.session);
