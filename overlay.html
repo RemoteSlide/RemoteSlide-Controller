@@ -1,4 +1,3 @@
-<link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.6.3/css/font-awesome.min.css" rel="stylesheet">
 <div class="remote-slide-overlay remote-slide-overlay-wrapper" id="remoteSlideOverlayWrapper">
     <div style="position: absolute; right: 2px; top: 2px; z-index: 9999; min-width: 25px; min-height: 25px;">
         <div id="remoteSlideStatusIcons">
@@ -19,6 +18,38 @@
 
 <!-- Laser Calibration -->
 <style>
+    /* Stand-ins for the handful of Font Awesome glyphs this overlay uses. The
+       stylesheet used to come from a CDN, which Manifest V3 discourages and
+       which the CSP of a site like Google Slides blocks outright - leaving the
+       laser dot and the calibration marks invisible exactly where they matter.
+       These are characters every system font ships, so nothing has to be
+       loaded. Scoped to the overlay container so a page's own .fa rules, and
+       its own icons, are left alone. */
+    #remoteSlideOverlayHtmlContainer .fa {
+        display: inline-block;
+        font-family: inherit;
+        font-style: normal;
+        font-weight: normal;
+        line-height: 1;
+        text-rendering: auto;
+    }
+
+    #remoteSlideOverlayHtmlContainer .fa-2x {
+        font-size: 2em;
+    }
+
+    #remoteSlideOverlayHtmlContainer .fa-circle::before { content: "\25CF"; }         /* filled circle */
+    #remoteSlideOverlayHtmlContainer .fa-circle-o::before { content: "\25CB"; }       /* hollow circle */
+    #remoteSlideOverlayHtmlContainer .fa-dot-circle-o::before { content: "\25C9"; }   /* circle with a dot */
+    #remoteSlideOverlayHtmlContainer .fa-square::before { content: "\25A0"; }
+    #remoteSlideOverlayHtmlContainer .fa-star::before { content: "\2605"; }
+    #remoteSlideOverlayHtmlContainer .fa-crosshairs::before { content: "\2316"; }
+    #remoteSlideOverlayHtmlContainer .fa-plus::before { content: "\271A"; }
+    #remoteSlideOverlayHtmlContainer .fa-times::before { content: "\2715"; }
+    #remoteSlideOverlayHtmlContainer .fa-times-circle-o::before { content: "\2297"; }
+    #remoteSlideOverlayHtmlContainer .fa-check-circle-o::before { content: "\2714"; }
+    #remoteSlideOverlayHtmlContainer .fa-question-circle-o::before { content: "?"; }
+
     .rs-laser-dot {
         position: fixed;
         z-index: 2147483648; /* Yeah... https://stackoverflow.com/a/18578245 - Minimum value: 2147483647 */
