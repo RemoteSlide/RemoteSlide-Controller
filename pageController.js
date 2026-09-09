@@ -1,13 +1,9 @@
-const remoteSlideIo = window.remoteslideio || window.io || io;
-const socket = remoteSlideIo("https://remote-sli.de");
+// RemoteSlideSocket comes from rs-socket.js, which the extension and the
+// bookmarklet load ahead of this file. The connection itself is opened at the
+// very end, once every handler below is registered.
+const socket = new RemoteSlideSocket(remote_slide.server || "https://remote-sli.de");
 socket.on("init", function (data) {
-    if (data.state == "start") {
-        console.info("Initializing session #" + remote_slide.session);
-        setTimeout(function () {
-            socket.emit("init", {iAm: "host", session: remote_slide.session, injector: remote_slide.injector});
-        }, 500);
-        status("orange", "question", "");
-    } else if (data.state == "success") {
+    if (data.state == "success") {
         console.info("Session initialized");
         status("green", "check", "", 5000);
         session.info = data.info;
@@ -75,6 +71,14 @@ window.addEventListener("pagehide", function () {
 socket.on('disconnect', function () {
     console.log("DISCONNECT")
     sendToExtension({action: "controlUpdate", active: false});
+});
+socket.on('rejected', function (data) {
+    console.warn("Connection rejected by the server: " + data.code + " " + data.reason);
+    sendToExtension({action: "controlUpdate", active: false});
+    if (data.code == 4001) {
+        // Another page took over the session as host; this one is done.
+        overlayMessage.show("Another page is now controlling this session");
+    }
 });
 
 // The background service worker answers takeScreenshot asynchronously, so its
@@ -220,7 +224,7 @@ var sendSlideInfo = function () {
         slideInfo.page.index = indexAndSize[0];
         slideInfo.page.size = indexAndSize[1];
     }
-    socket.emit("_forward", {event: "slideInfo", data: {info: slideInfo}});
+    socket.emit("slideInfo", {data: {info: slideInfo}});
 };
 var sendScreenshot = function () {
     sendToExtension({action: "takeScreenshot"}, function (response) {
@@ -230,7 +234,7 @@ var sendScreenshot = function () {
             console.warn("No screenshot returned");
             return;
         }
-        socket.emit("_forward", {event: "screenshot", data: {image: response.image}});
+        socket.emit("screenshot", {data: {image: response.image}});
     });
 }
 setTimeout(function () {
@@ -399,10 +403,10 @@ var overlayMessage = {
     },
     remote: {
         show: function (msg) {
-            socket.emit("_forward", {event: "overlayMessage", action: "show", msg: msg});
+            socket.emit("overlayMessage", {action: "show", msg: msg});
         },
         hide: function () {
-            socket.emit("_forward", {event: "overlayMessage", action: "hide"});
+            socket.emit("overlayMessage", {action: "hide"});
         }
     }
 };
@@ -501,15 +505,10 @@ socket.on("err", function (msg) {
     console.warn("Slide Error #" + msg.code + ": " + msg.msg)
 });
 
-//// Latency
-var startTime;
+//// Latency (the socket sends its own heartbeats and reports the round trip)
 var latency;
-setInterval(function () {
-    startTime = Date.now();
-    socket.emit('latency', {t: startTime});
-}, 2000);
-socket.on('latency', function () {
-    latency = Date.now() - startTime;
+socket.on('latency', function (data) {
+    latency = data.latency;
 });
 
 function status(color, type, msg, timeout) {
@@ -530,3 +529,7 @@ function onlyRunOnce(f, t) {
     clearTimeout(runOnceTimer);
     runOnceTimer = setTimeout(f, t);
 }
+
+console.info("Joining session #" + remote_slide.session + " as host (" + remote_slide.injector + ")");
+status("orange", "question", "");
+socket.connect({session: remote_slide.session, role: "host", injector: remote_slide.injector});
