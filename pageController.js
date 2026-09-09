@@ -25,12 +25,9 @@ socket.on("init", function (data) {
     }
 
 
-    try {
-        chrome.runtime.sendMessage({action: "socketEvent", event: 'init', data: data});
-        chrome.runtime.sendMessage({action: "sessionUpdate", session: session});
-        chrome.runtime.sendMessage({action: "controlUpdate", active: true, site: (detectedSlideSite ? detectedSlideSite.name : undefined)});
-    } catch (ignored) {
-    }
+    sendToExtension({action: "socketEvent", event: 'init', data: data});
+    sendToExtension({action: "sessionUpdate", session: session});
+    sendToExtension({action: "controlUpdate", active: true, site: (detectedSlideSite ? detectedSlideSite.name : undefined)});
 });
 socket.on("info", function (data) {
     console.log(data);
@@ -51,33 +48,55 @@ socket.on("info", function (data) {
         }
     }
 
-    try {
-        chrome.runtime.sendMessage({action: "socketEvent", event: 'info', data: data});
-        chrome.runtime.sendMessage({action: "sessionUpdate", session: session});
-    } catch (ignored) {
-    }
+    sendToExtension({action: "socketEvent", event: 'info', data: data});
+    sendToExtension({action: "sessionUpdate", session: session});
 });
 socket.on("connectionInfo", function (data) {
     session.info = data.info;
 })
 
+// chrome.extension.onMessage was removed in Manifest V3
 try {
-    chrome.extension.onMessage.addListener(function (msg, sender, sendResponse) {
+    chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
         console.log(msg)
         if (msg.action == 'stateRequest') {
-            chrome.runtime.sendMessage({action: "controlUpdate", active: true, site: (detectedSlideSite ? detectedSlideSite.name : undefined)});
+            sendToExtension({action: "controlUpdate", active: true, site: (detectedSlideSite ? detectedSlideSite.name : undefined)});
         }
     });
 } catch (ignored) {
 }
-window.onunload = function () {
-    console.info("UNLOAD")
-    chrome.runtime.sendMessage({action: "controlUpdate", active: false});
-}
+// 'unload' no longer fires reliably (a page entering the back/forward cache skips
+// it entirely) and it would clobber a handler the page set itself. 'pagehide' is
+// the one that still gets through.
+window.addEventListener("pagehide", function () {
+    console.info("PAGEHIDE")
+    sendToExtension({action: "controlUpdate", active: false});
+});
 socket.on('disconnect', function () {
     console.log("DISCONNECT")
-    chrome.runtime.sendMessage({action: "controlUpdate", active: false});
+    sendToExtension({action: "controlUpdate", active: false});
 });
+
+// The background service worker answers takeScreenshot asynchronously, so its
+// listener holds the message channel open for every message it receives; each
+// fire-and-forget send therefore ends in a "message port closed" lastError.
+// Reading lastError inside the callback is what keeps Chrome from logging it.
+// sendMessage also throws outright once the extension is reloaded and this
+// content script is left orphaned in the page.
+function sendToExtension(msg, callback) {
+    try {
+        chrome.runtime.sendMessage(msg, function (response) {
+            void chrome.runtime.lastError;
+            if (callback) {
+                callback(response);
+            }
+        });
+    } catch (ignored) {
+        if (callback) {
+            callback(undefined);
+        }
+    }
+}
 
 
 var session = {
@@ -204,13 +223,15 @@ var sendSlideInfo = function () {
     socket.emit("_forward", {event: "slideInfo", data: {info: slideInfo}});
 };
 var sendScreenshot = function () {
-    try {
-        chrome.runtime.sendMessage({action: "takeScreenshot"}, function (image) {
-            console.log(image)
-            socket.emit("_forward", {event: "screenshot", data: {image: image.image}});
-        });
-    } catch (ignored) {
-    }
+    sendToExtension({action: "takeScreenshot"}, function (response) {
+        // The worker replies with an empty object when the capture failed, and
+        // with nothing at all if it went away mid-request
+        if (!response || !response.image) {
+            console.warn("No screenshot returned");
+            return;
+        }
+        socket.emit("_forward", {event: "screenshot", data: {image: response.image}});
+    });
 }
 setTimeout(function () {
     sendSlideInfo();
@@ -259,51 +280,112 @@ socket.on("control", function (msg) {
     }, 500)
 });
 //// http://stackoverflow.com/questions/26816306/is-there-a-way-to-simulate-pressing-multiple-keys-on-mouse-click-with-javascript
-function simulateKeyEvent(keyCode, ctrlKey, shiftKey, altKey) {
-    // Prepare function for injection into page
-    function injected() {
-        // Adjust as needed; some events are only processed at certain elements
-        var element = document.body;
-        var keyCode = ___keyCode;
+// The remote only ever sends a keyCode. keyCode is deprecated and presentation
+// software increasingly reads key/code instead, so derive those as well rather
+// than dispatching an event that carries the legacy attribute alone.
+var KEY_DESCRIPTORS = {
+    8: ["Backspace", "Backspace"],
+    9: ["Tab", "Tab"],
+    13: ["Enter", "Enter"],
+    19: ["Pause", "Pause"],
+    27: ["Escape", "Escape"],
+    32: [" ", "Space"],
+    33: ["PageUp", "PageUp"],
+    34: ["PageDown", "PageDown"],
+    35: ["End", "End"],
+    36: ["Home", "Home"],
+    37: ["ArrowLeft", "ArrowLeft"],
+    38: ["ArrowUp", "ArrowUp"],
+    39: ["ArrowRight", "ArrowRight"],
+    40: ["ArrowDown", "ArrowDown"],
+    45: ["Insert", "Insert"],
+    46: ["Delete", "Delete"],
+    188: [",", "Comma"],
+    190: [".", "Period"],
+    191: ["/", "Slash"]
+};
 
-        console.log(element)
+function describeKey(keyCode, ctrlKey, shiftKey, altKey) {
+    var key;
+    var code;
+    var known = KEY_DESCRIPTORS[keyCode];
 
-        function keyEvent(el, ev) {
-            var eventObj = document.createEvent("Events");
-            eventObj.initEvent(ev, true, true);
-
-            // Edit this to fit
-            eventObj.keyCode = keyCode;
-            eventObj.which = keyCode;
-            //TODO: fix this
-            // eventObj.ctrlKey = ctrlKey;
-            // eventObj.shiftKey = shiftKey;
-            // eventObj.altKey = altKey;
-
-            var res = el.dispatchEvent(eventObj);
-            console.log("KeyResult (" + ev + "): " + res)
-            return res;
-        }
-
-        // Trigger all 3 just in case
-        var r = true;
-        r &= keyEvent(element, "keydown");
-        r &= keyEvent(element, "keypress");
-        r &= keyEvent(element, "keyup");
-        console.log("Complete KeyResult: " + r)
-        if (r == true) {
-            console.warn("Simulating Key Event failed (probably)")
-        }
+    if (known) {
+        key = known[0];
+        code = known[1];
+    } else if (keyCode >= 65 && keyCode <= 90) {// A-Z
+        var letter = String.fromCharCode(keyCode);
+        key = shiftKey ? letter : letter.toLowerCase();
+        code = "Key" + letter;
+    } else if (keyCode >= 48 && keyCode <= 57) {// 0-9
+        key = String.fromCharCode(keyCode);
+        code = "Digit" + key;
+    } else if (keyCode >= 96 && keyCode <= 105) {// numpad 0-9
+        key = String.fromCharCode(keyCode - 48);
+        code = "Numpad" + key;
+    } else if (keyCode >= 112 && keyCode <= 123) {// F1-F12
+        key = "F" + (keyCode - 111);
+        code = key;
+    } else {
+        key = "Unidentified";
+        code = "Unidentified";
     }
 
-    // Inject the script
-    console.log(document.body)
-    console.log($("body"))
-    var script = document.createElement('script');
-    script.textContent = "(" + injected.toString().replace("___keyCode", keyCode) + ")();";
-    // console.log(script.textContent)
-    (document.head || document.documentElement).appendChild(script);
-    script.parentNode.removeChild(script);
+    return {
+        keyCode: keyCode,
+        key: key,
+        code: code,
+        ctrlKey: !!ctrlKey,
+        shiftKey: !!shiftKey,
+        altKey: !!altKey
+    };
+}
+
+// This used to build a function with toString() and drop it into the page as an
+// inline <script>, because the legacy keyCode/which had to be set as expandos on
+// a generic Event, and expandos do not cross into the page's world. Manifest V3
+// applies the extension's own CSP ("script-src 'self'") to scripts a content
+// script injects, so that inline script is now refused on every site - with or
+// without a CSP of its own - and the remote would click through to nothing.
+//
+// A real KeyboardEvent carries keyCode/which on the event itself rather than on
+// a per-world JS wrapper, so the page reads the values it expects and nothing
+// has to be injected at all. Dispatching an event is not script execution, so no
+// CSP applies to it either.
+function simulateKeyEvent(keyCode, ctrlKey, shiftKey, altKey) {
+    // Adjust as needed; some events are only processed at certain elements
+    var element = document.body || document.documentElement;
+    if (!element) {
+        console.warn("Nowhere to dispatch the key event to");
+        return;
+    }
+
+    var descriptor = describeKey(keyCode, ctrlKey, shiftKey, altKey);
+    var handled = false;
+
+    // Trigger all 3 just in case
+    ["keydown", "keypress", "keyup"].forEach(function (type) {
+        var prevented = !element.dispatchEvent(new KeyboardEvent(type, {
+            bubbles: true,
+            cancelable: true,
+            composed: true,
+            view: window,
+            key: descriptor.key,
+            code: descriptor.code,
+            keyCode: keyCode,
+            which: keyCode,
+            charCode: 0,
+            ctrlKey: descriptor.ctrlKey,
+            shiftKey: descriptor.shiftKey,
+            altKey: descriptor.altKey
+        }));
+        console.log("KeyResult (" + type + "): " + prevented);
+        handled = handled || prevented;
+    });
+
+    if (!handled) {
+        console.warn("Simulating key event " + keyCode + " had no effect (probably)");
+    }
 }
 
 var overlayMessage = {
@@ -333,14 +415,20 @@ socket.on("overlayMessage", function (msg) {
     }
 });
 
+// Shapes overlay.html can draw without the Font Awesome webfont
+var LASER_ICONS = ["circle", "circle-o", "dot-circle-o", "square", "star", "crosshairs", "plus", "times"];
 var laserPointer = {
     applyStyle: function (client, styles) {
         var element = $("#rs-laser-dot-" + client);
-        $.each(styles, function (key, value) {
+        $.each(styles || {}, function (key, value) {
             element.css(key, value);
         })
+        var icon = styles && styles._icon;
+        if (LASER_ICONS.indexOf(icon) < 0) {
+            icon = "circle";
+        }
         var iconElement = element.children().first();
-        iconElement.removeClass().addClass("fa").addClass("fa-" + (styles._icon || "circle"));
+        iconElement.removeClass().addClass("fa").addClass("fa-" + icon);
     },
     currentPoint: [],
     lastMessage: 0,
