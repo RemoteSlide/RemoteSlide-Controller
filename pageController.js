@@ -533,3 +533,8 @@ function onlyRunOnce(f, t) {
 console.info("Joining session #" + remote_slide.session + " as host (" + remote_slide.injector + ")");
 status("orange", "question", "");
 socket.connect({session: remote_slide.session, role: "host", injector: remote_slide.injector});
+// The extension injects this file with scripting.executeScript(), which hands
+// the script's last value back to it. Firefox rejects the whole call when that
+// value cannot be structured-cloned - as the socket connect() returns cannot -
+// and the extension would never go on to load the overlay. So end on a plain value.
+undefined;
